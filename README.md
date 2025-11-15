@@ -98,6 +98,8 @@ output_folder/
 **Step 2: Generate target_image**
 
 Generate target images using object detection and grounding methods such as GroundingDINO, YOLO, etc. These target images represent the gaze regions or objects of interest that the model should focus on during manipulation tasks.
+
+We have provided a processing pipeline for your reference. Please see **\ReconVLA\reconvla\scripts\helper\Readme.md** for details.
 ```
 output_folder/
 ├── 0_task_name_1/
