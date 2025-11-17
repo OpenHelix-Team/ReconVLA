@@ -302,8 +302,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     log_path = args.log_path
-    root_path = args.root_path
-    npz_rootpath = args.npz_rootpath
+    root_path = args.root_folder
+    npz_rootpath = args.npz_src_dir
     
     def redirect_stdout_stderr(log_path):
         log_file = open(log_path, "w", buffering=1, encoding="utf-8")
