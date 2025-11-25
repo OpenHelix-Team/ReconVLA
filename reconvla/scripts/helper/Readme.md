@@ -36,16 +36,3 @@ python ./scripts/helper/unstack_process.py
 ```
 
 2. Read the object coordinate data from the last frame of unstack tasks in the lang_ann.yaml file, identify the two blocks with the closest geometric distance, select the block with the smaller z-axis value, and crop a fixed-size region as the target image.
-
-### For LIBERO and BridgeV2
-```bash
-cd reconvla/reconvla
-## BridgeV2
-python ./scripts/helper/dataloaders.py \
---dataset bridge \
---output_json ./pretrain/bridge_pretrain.json
-## LIBERO
-python ./scripts/helper/dataloaders.py \
---dataset libero \
---output_json ./pretrain/libero_pretrain.json
-```
