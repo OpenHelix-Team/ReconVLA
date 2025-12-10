@@ -68,7 +68,7 @@ def main():
     args = parser.parse_args()
     
     ann_path = args.ann_path
-    image_src_dir = args.image_src_dir
+    image_src_dir = args.npz_src_dir
     root_folder = args.root_folder
     
     if not os.path.exists(ann_path):
