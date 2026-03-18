@@ -49,9 +49,10 @@ def run_task(args):
         task_name = os.path.basename(task)
         task_log_folder = os.path.join(log_folder, f"gpu{gpu_id}", task_name)
         os.makedirs(task_log_folder, exist_ok=True)
+        task_log_file = os.path.join(task_log_folder, "missing_targets.log")
         
         start_time = time.time()
-        process_folder(task, model, image_src_dir, task_log_folder)
+        process_folder(task, model, image_src_dir, task_log_file)
         elapsed = time.time() - start_time
         
         return (task, True, f"Success in {elapsed:.2f}s")

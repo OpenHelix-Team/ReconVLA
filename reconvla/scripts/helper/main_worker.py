@@ -7,6 +7,20 @@ import re
 import numpy as np
 from datetime import datetime
 
+DEFAULT_MISSING_TARGETS_LOG = "missing_targets.log"
+
+
+def resolve_log_file_path(log_path):
+    if os.path.isdir(log_path):
+        return os.path.join(log_path, DEFAULT_MISSING_TARGETS_LOG)
+
+    parent_dir = os.path.dirname(log_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
+    return log_path
+
+
 def extract_frame_number(file_name):
     match = re.search(r'frame_(\d+)\.png', file_name)
     return int(match.group(1)) if match else float('inf')
@@ -160,6 +174,7 @@ def select_obj(task_text , gripper_state):
 def process_folder(root_folder, model, image_src_dir, log_file_path):
     IMG_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
     batch_size=16
+    log_file_path = resolve_log_file_path(log_file_path)
 
     now = datetime.now().strftime("%H:%M:%S")
     #print(f'----------subfolder_name :{root_folder}-----{now}------',flush=True)
