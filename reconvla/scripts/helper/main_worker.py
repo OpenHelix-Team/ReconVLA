@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 
 DEFAULT_MISSING_TARGETS_LOG = "missing_targets.log"
+FALLBACK_CROP_LABEL = "fallback_full_image"
 
 
 def resolve_log_file_path(log_path):
@@ -19,6 +20,39 @@ def resolve_log_file_path(log_path):
         os.makedirs(parent_dir, exist_ok=True)
 
     return log_path
+
+
+def write_crop_info(jsonl_path, crop_info, is_first_image):
+    mode = 'w' if is_first_image else 'a'
+    with open(jsonl_path, mode) as jsonl_file:
+        jsonl_file.write(json.dumps(crop_info) + '\n')
+    return False
+
+
+def write_original_image_fallback(img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image):
+    h, w = img.shape[:2]
+    crop_name = f"{os.path.splitext(file_name)[0]}.jpg"
+    crop_path = os.path.join(crop_folder, crop_name)
+    cv2.imwrite(crop_path, img)
+
+    crop_info = {
+        "npz": npz_filename,
+        "original_image": file_name,
+        "crop_image": crop_name,
+        "label": FALLBACK_CROP_LABEL,
+        "coordinates": {
+            "x1": 0,
+            "y1": 0,
+            "x2": int(w),
+            "y2": int(h)
+        }
+    }
+    is_first_image = write_crop_info(jsonl_path, crop_info, is_first_image)
+
+    with open(log_file_path, "a") as log_file:
+        log_file.write(f"{crop_folder}/{file_name}\n")
+
+    return is_first_image
 
 
 def extract_frame_number(file_name):
@@ -330,19 +364,20 @@ def _process_batch(imgs, batch_file_paths, file_names, npz_names, task_texts, gr
                         "y2": int(y2)
                     }
                 }
-                mode = 'w' if is_first_image else 'a'
-                with open(jsonl_path, mode) as jsonl_file:
-                    jsonl_file.write(json.dumps(crop_info) + '\n')
-                is_first_image = False
+                is_first_image = write_crop_info(jsonl_path, crop_info, is_first_image)
 
             if not found_target:
-                with open(log_file_path, "a") as log_file:
-                    log_file.write(f"{crop_folder}/{file_name}\n")
+                is_first_image = write_original_image_fallback(
+                    img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image
+                )
 
         else:
             target9 = [(box, conf, cls) for box, conf, cls in zip(boxes, confs, classes) if cls == 9]
             if not target9:
-                raise ValueError("没有找到 cls==9 的框，跳过该图像。")
+                is_first_image = write_original_image_fallback(
+                    img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image
+                )
+                continue
             box9, _, _ = target9[0]
             cx9, cy9 = (box9[0] + box9[2]) / 2, (box9[1] + box9[3]) / 2
 
@@ -356,7 +391,10 @@ def _process_batch(imgs, batch_file_paths, file_names, npz_names, task_texts, gr
             if os.path.basename(target_file) == os.path.basename(file_path):
                 candidate_boxes = [(box, conf, cls) for box, conf, cls in zip(boxes, confs, classes) if cls in (1, 2, 6)]
                 if not candidate_boxes:
-                    raise ValueError("没有找到 cls==1/2/6 的候选框，跳过该图像。")
+                    is_first_image = write_original_image_fallback(
+                        img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image
+                    )
+                    continue
 
                 min_dist = float('inf')
                 target_box, target_conf, target_cls_actual = None, None, None
@@ -397,10 +435,7 @@ def _process_batch(imgs, batch_file_paths, file_names, npz_names, task_texts, gr
                             "y2": int(y2)
                         }
                     }
-                    mode = 'w' if is_first_image else 'a'
-                    with open(jsonl_path, mode) as jsonl_file:
-                        jsonl_file.write(json.dumps(crop_info) + '\n')
-                    is_first_image = False
+                    is_first_image = write_crop_info(jsonl_path, crop_info, is_first_image)
         
             else:
                     results = model(
@@ -414,15 +449,19 @@ def _process_batch(imgs, batch_file_paths, file_names, npz_names, task_texts, gr
 
                     target9 = [(box, conf, cls) for box, conf, cls in zip(boxes, confs, classes) if cls == 9]
                     if not target9:
-                        #print(f"没有找到 cls==9 的框，跳过该图像：{file_name}")
-                        raise ValueError("没有找到 cls==9 的框，跳过该图像。")
+                        is_first_image = write_original_image_fallback(
+                            img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image
+                        )
+                        continue
                     box9, _, _ = target9[0]
                     cx9, cy9 = (box9[0] + box9[2]) / 2, (box9[1] + box9[3]) / 2
 
                     candidate_boxes = [(box, conf, cls) for box, conf, cls in zip(boxes, confs, classes) if cls in (1, 2, 6)]
                     if not candidate_boxes:
-                        #print(f"没有找到 cls==1/2/6 的候选框，跳过该图像：{file_name}")
-                        raise ValueError("没有找到 cls==1/2/6 的候选框，跳过该图像。")
+                        is_first_image = write_original_image_fallback(
+                            img, file_name, npz_filename, crop_folder, jsonl_path, log_file_path, is_first_image
+                        )
+                        continue
                     min_dist = float('inf')
                     target_box, target_conf, target_cls_actual = None, None, None
                     for box, conf, cls in candidate_boxes:
@@ -474,7 +513,4 @@ def _process_batch(imgs, batch_file_paths, file_names, npz_names, task_texts, gr
                                 "y2": int(y2)
                             }
                         }
-                        mode = 'w' if is_first_image else 'a'
-                        with open(jsonl_path, mode) as jsonl_file:
-                            jsonl_file.write(json.dumps(crop_info) + '\n')
-                        is_first_image = False
+                        is_first_image = write_crop_info(jsonl_path, crop_info, is_first_image)
