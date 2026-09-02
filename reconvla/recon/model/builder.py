@@ -7,6 +7,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAn
 import torch
 from recon.model import *
 from recon.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from recon.vocab_utils import resize_token_embeddings_if_needed
 
 
 def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda", use_flash_attn=False, **kwargs):
@@ -47,7 +48,9 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         tokenizer.add_tokens([DEFAULT_IMAGE_PATCH_TOKEN], special_tokens=True)
     if mm_use_im_start_end:
         tokenizer.add_tokens([DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True)
-    model.resize_token_embeddings(len(tokenizer))
+    # Keep checkpoint-padded rows when the tokenizer is shorter than the model
+    # vocabulary; some checkpoints store action-token weights in those rows.
+    resize_token_embeddings_if_needed(model, tokenizer)
 
     vision_tower = model.get_vision_tower()
     if not vision_tower.is_loaded:
